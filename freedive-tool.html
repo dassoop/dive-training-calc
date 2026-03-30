@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Freediving Training Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117;
+      --bg-card: #161b26;
+      --border: rgba(255,255,255,0.07);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #4b5563;
+      --radius: 8px;
+      --accent: #5a99aa;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; }
+    header { border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    header h1 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.15em; text-transform: lowercase; color: var(--accent); }
+    .download-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; font-size: 0.72rem; cursor: pointer; letter-spacing: 0.05em; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+    .download-btn:hover { border-color: var(--accent); color: var(--accent); }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 24px 80px; }
+
+    /* Stats */
+    .dive-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .dive-stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 10px; text-align: center; }
+    .dive-stat-value { font-size: 1.4rem; font-weight: 700; color: var(--accent); font-family: monospace; }
+    .dive-stat-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+
+    .dive-section-title { font-size: 0.65rem; color: var(--text-dim); text-transform: lowercase; letter-spacing: 0.12em; margin-bottom: 10px; font-weight: 500; }
+
+    /* Timers */
+    .dive-timers { margin-bottom: 16px; }
+    .dive-timer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .dive-timer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; transition: border-color 0.3s, background 0.3s; }
+    .dive-timer-active { border-color: var(--accent); background: rgba(90,153,170,0.06); }
+    .dive-timer-done { border-color: #5aaa78; background: rgba(90,170,120,0.08); }
+    .dive-timer-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    .dive-timer-display { font-size: 2.5rem; font-weight: 700; font-family: monospace; color: var(--text); line-height: 1; margin-bottom: 4px; }
+    .dive-timer-active .dive-timer-display { color: var(--accent); }
+    .dive-timer-done .dive-timer-display { color: #5aaa78; }
+    .dive-hold-target { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 10px; color: var(--text-muted); font-family: monospace; }
+    .dive-hold-target .dive-time-num { width: 45px; text-align: center; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px; border-radius: 4px; font-size: 0.85rem; }
+    .dive-timer-btn { background: var(--accent); color: #fff; border: none; padding: 8px 28px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-weight: 500; transition: background 0.15s; }
+    .dive-timer-btn:hover { background: #4a8999; }
+
+    /* Log Form */
+    .dive-log-form { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+    .dive-form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+    .dive-form-field { display: flex; flex-direction: column; gap: 3px; }
+    .dive-form-field label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+    .dive-form-field input, .dive-form-field select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 6px; font-size: 0.8rem; outline: none; }
+    .dive-form-field input:focus, .dive-form-field select:focus { border-color: var(--accent); }
+    .dive-form-notes { flex: 1; min-width: 200px; }
+    .dive-form-notes input { width: 100%; }
+    .dive-time-input { display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-family: monospace; }
+    .dive-time-num { width: 50px; text-align: center; }
+    .dive-log-btn { background: var(--accent); color: #fff; border: none; padding: 6px 20px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-weight: 500; white-space: nowrap; }
+    .dive-log-btn:hover { background: #4a8999; }
+    .dive-hidden { display: none !important; }
+
+    /* History */
+    .dive-history { margin-bottom: 16px; }
+    .dive-log-list { display: flex; flex-direction: column; gap: 4px; }
+    .dive-log-entry { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.8rem; }
+    .dive-log-date { color: var(--text-dim); font-family: monospace; font-size: 0.75rem; min-width: 85px; }
+    .dive-log-type { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 10px; min-width: 80px; text-align: center; }
+    .dive-type-dry_static { background: rgba(90,153,170,0.15); color: #5a99aa; }
+    .dive-type-wet_static { background: rgba(90,170,120,0.15); color: #5aaa78; }
+    .dive-type-co2_table { background: rgba(170,140,90,0.15); color: #aa8c5a; }
+    .dive-type-dynamic { background: rgba(140,90,170,0.15); color: #8c5aaa; }
+    .dive-type-duck_dive { background: rgba(90,120,170,0.15); color: #5a78aa; }
+    .dive-type-ocean { background: rgba(60,160,180,0.15); color: #3ca0b4; }
+    .dive-type-breathwork { background: rgba(170,170,90,0.15); color: #aaaa5a; }
+    .dive-type-body { background: rgba(170,90,90,0.15); color: #aa5a5a; }
+    .dive-log-metric { font-family: monospace; font-weight: 600; color: var(--text); min-width: 60px; }
+    .dive-log-notes { color: var(--text-muted); font-size: 0.75rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dive-log-delete { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; opacity: 0; transition: opacity 0.15s; }
+    .dive-log-entry:hover .dive-log-delete { opacity: 1; }
+    .dive-log-delete:hover { color: #cc5555; }
+    .dive-empty { color: var(--text-dim); font-size: 0.8rem; padding: 20px; text-align: center; }
+
+    /* Training Program */
+    .dive-program { margin-bottom: 16px; }
+    .dive-summary { cursor: pointer; user-select: none; padding: 10px 0; list-style: none; }
+    .dive-summary::-webkit-details-marker { display: none; }
+    .dive-summary::before { content: '+ '; color: var(--accent); }
+    details[open] > .dive-summary::before { content: '- '; }
+    .dive-program-content { padding-top: 8px; }
+    .dive-phase { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+    .dive-phase-title { font-size: 0.85rem; color: var(--accent); margin: 0 0 6px; font-weight: 600; }
+    .dive-phase-goal { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; font-style: italic; }
+    .dive-block { margin-bottom: 12px; font-size: 0.8rem; color: var(--text); line-height: 1.5; }
+    .dive-block strong { color: var(--text); font-size: 0.8rem; }
+    .dive-block p { margin: 6px 0; color: var(--text-muted); font-size: 0.78rem; }
+    .dive-block em { color: var(--text); }
+    .dive-block ul { margin: 6px 0; padding-left: 18px; }
+    .dive-block li { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 3px; }
+    .dive-safety { border-color: rgba(200,80,80,0.3); }
+    .dive-safety ul { margin: 0; padding-left: 18px; }
+    .dive-safety li { color: #cc8888; font-size: 0.78rem; margin-bottom: 4px; }
+
+    @media (max-width: 600px) {
+      .dive-stats { grid-template-columns: repeat(2, 1fr); }
+      .dive-timer-row { grid-template-columns: 1fr; }
+      .dive-timer-display { font-size: 2rem; }
+      .dive-log-entry { flex-wrap: wrap; }
+      .dive-log-notes { flex-basis: 100%; white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5a99aa" stroke-width="1.5" stroke-linecap="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4l3 3"/></svg>
+    <h1>freediving training tool</h1>
+  </div>
+  <button class="download-btn" onclick="downloadSelf()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    save offline
+  </button>
+</header>
+
+<main>
+  <!-- Stats -->
+  <div class="dive-stats">
+    <div class="dive-stat-card"><div class="dive-stat-value" id="statDry">--</div><div class="dive-stat-label">Best Dry Static</div></div>
+    <div class="dive-stat-card"><div class="dive-stat-value" id="statWet">--</div><div class="dive-stat-label">Best Wet Static</div></div>
+    <div class="dive-stat-card"><div class="dive-stat-value" id="statDyn">--</div><div class="dive-stat-label">Best Dynamic</div></div>
+    <div class="dive-stat-card"><div class="dive-stat-value" id="statTotal">0</div><div class="dive-stat-label">Total Sessions</div></div>
+  </div>
+
+  <!-- Timers -->
+  <div class="dive-timers">
+    <h3 class="dive-section-title">timers</h3>
+    <div class="dive-timer-row">
+      <div class="dive-timer-card" id="buCard">
+        <div class="dive-timer-label">Breathe-Up</div>
+        <div class="dive-timer-display" id="buDisp">2:00</div>
+        <button class="dive-timer-btn" id="buBtn" onclick="startBreatheUp()">Start</button>
+      </div>
+      <div class="dive-timer-card" id="htCard">
+        <div class="dive-timer-label">Breath Hold</div>
+        <div class="dive-timer-display" id="htDisp">1:30</div>
+        <div class="dive-hold-target">
+          <input type="number" id="htMin" min="0" max="99" value="1" class="dive-time-num"> :
+          <input type="number" id="htSec" min="0" max="59" value="30" class="dive-time-num">
+        </div>
+        <button class="dive-timer-btn" id="htBtn" onclick="startHold()">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Form -->
+  <div class="dive-log-form">
+    <h3 class="dive-section-title">log session</h3>
+    <div class="dive-form-row">
+      <div class="dive-form-field"><label>Date</label><input type="date" id="diveDate"></div>
+      <div class="dive-form-field"><label>Type</label>
+        <select id="diveType" onchange="diveTypeChanged()">
+          <option value="dry_static">Dry Static</option>
+          <option value="co2_table">CO2 Table</option>
+          <option value="wet_static">Wet Static</option>
+          <option value="dynamic">Dynamic Apnea</option>
+          <option value="duck_dive">Duck Dive Practice</option>
+          <option value="ocean">Ocean Dive</option>
+          <option value="breathwork">Breath Work Only</option>
+          <option value="body">Body Work / Gym</option>
+        </select>
+      </div>
+      <div class="dive-form-field" id="diveDurationField"><label>Duration</label>
+        <div class="dive-time-input">
+          <input type="number" id="diveMin" min="0" max="30" placeholder="min" class="dive-time-num"> :
+          <input type="number" id="diveSec" min="0" max="59" placeholder="sec" class="dive-time-num">
+        </div>
+      </div>
+      <div class="dive-form-field dive-hidden" id="diveDistanceField"><label>Distance (m)</label><input type="number" id="diveDistance" min="0" placeholder="meters"></div>
+      <div class="dive-form-field dive-hidden" id="diveDepthField"><label>Depth (ft)</label><input type="number" id="diveDepth" min="0" placeholder="feet"></div>
+    </div>
+    <div class="dive-form-row">
+      <div class="dive-form-field dive-form-notes"><label>Notes</label><input type="text" id="diveNotes" placeholder="How did it feel?"></div>
+      <button class="dive-log-btn" onclick="addDiveLog()">Log</button>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="dive-history">
+    <h3 class="dive-section-title">progress log</h3>
+    <div class="dive-log-list" id="diveLogList"></div>
+  </div>
+
+  <!-- Training Program -->
+  <div class="dive-program">
+    <h3 class="dive-section-title">training program</h3>
+    <div class="dive-program-content">
+
+      <div class="dive-phase">
+        <h4 class="dive-phase-title">Phase 1 — Rebuild the Base (Weeks 1-4)</h4>
+        <p class="dive-phase-goal">Goal: Retrain CO2 tolerance. Get comfortable holding your breath again.</p>
+        <div class="dive-block"><strong>Daily Breath Work (10-15 min, lying down)</strong>
+          <p><em>Diaphragmatic Breathing — 5 min</em><br>Lie flat. Inhale through nose (4 sec, belly rises). Exhale through mouth (6-8 sec). Longer exhale activates parasympathetic system.</p>
+          <p><em>Beginner CO2 Table</em><br>Take a relaxed breath, hold until first urge = your baseline. Do 5 rounds at 50% baseline with 2:00 rest. Retest every 3-4 days.</p>
+          <p><em>Recovery Breathing</em><br>After every hold: sharp inhale, hold 2 sec, exhale. Repeat 3x. Hook breathing — make it automatic.</p>
+        </div>
+        <div class="dive-block"><strong>Body Work (3x/week)</strong>
+          <p>Rib cage stretches, squats 3x15, calf raises 3x20, walking lunges 2x10. Aerobic: 20-30 min walk/jog, nose breathing only.</p>
+        </div>
+        <div class="dive-block"><strong>Milestones</strong>
+          <ul><li>Establish baseline (day 1)</li><li>Comfortable CO2 table at 50% (week 1)</li><li>Baseline reaches 1:30+ (week 2-3)</li><li>CO2 table at 60-70% (week 3-4)</li></ul>
+        </div>
+      </div>
+
+      <div class="dive-phase">
+        <h4 class="dive-phase-title">Phase 2 — Water Reintroduction (Weeks 3-6)</h4>
+        <p class="dive-phase-goal">Goal: Activate mammalian dive reflex. Build water comfort.</p>
+        <div class="dive-block"><strong>Pool Sessions (1x/week, with buddy)</strong>
+          <p><em>Face-In Static</em><br>Shallow end, float face down. Dive reflex only triggers with face submerged. Build to matching dry times.</p>
+          <p><em>Dynamic Apnea</em><br>Push off wall, streamline, glide. Slow hip kicks. Start: 1 pool length (25m).</p>
+          <p><em>Duck Dive</em><br>Pike at surface, legs straight up. One clean kick, streamline down.</p>
+          <p><em>Breathe-Up</em><br>2-3 min calm breathing before every hold. Last breath: belly, chest, top off gently.</p>
+        </div>
+        <div class="dive-block"><strong>Milestones</strong>
+          <ul><li>Comfortable face-in holds (session 1)</li><li>Wet static matches dry static (week 4-5)</li><li>1 pool length underwater (week 4)</li><li>Smooth duck dive (week 5-6)</li></ul>
+        </div>
+      </div>
+
+      <div class="dive-phase">
+        <h4 class="dive-phase-title">Phase 3 — Ocean Ready (Weeks 6-8+)</h4>
+        <p class="dive-phase-goal">Goal: Confident shallow ocean dives. Bottom time before depth.</p>
+        <div class="dive-block"><strong>Equalization (Frenzel)</strong>
+          <p>Pinch nose, close mouth, push back of tongue upward like "T" or "K." Practice dry: 20 reps daily. Equalize every few feet — don't wait for pain.</p>
+        </div>
+        <div class="dive-block"><strong>Ocean Sessions</strong>
+          <p>Start at 10-15 ft. Build bottom time before depth. 45 sec at 15 ft beats touching 30 ft and bolting up. Hunting comes last.</p>
+        </div>
+        <div class="dive-block"><strong>Milestones</strong>
+          <ul><li>Frenzel to 10-15 ft (week 6-7)</li><li>30 sec bottom time at 15 ft (week 7-8)</li><li>3-dive series with proper recovery (week 8)</li><li>First hunt-ready session (week 8+)</li></ul>
+        </div>
+      </div>
+
+      <div class="dive-phase">
+        <h4 class="dive-phase-title">Technique Reference</h4>
+        <div class="dive-block"><strong>CO2 Tolerance</strong><p>CO2 builds up when you hold your breath. Your brain reads it as "suffocating" but you have minutes of O2 left. CO2 tables train your body to delay the panic response. Single biggest factor in longer holds.</p></div>
+        <div class="dive-block"><strong>Mammalian Dive Reflex</strong><p>Face in cold water triggers: heart rate drops 10-25%, blood shifts to core/brain, spleen releases extra red blood cells. Why wet holds beat dry holds.</p></div>
+        <div class="dive-block"><strong>Hook Breathing</strong><p>After surfacing: sharp inhale, hold 2 sec, exhale. 3x. Keeps O2-rich blood flowing to brain during the critical 15 seconds post-surface. Prevents blackout.</p></div>
+        <div class="dive-block"><strong>Frenzel Equalization</strong><p>Tongue acts as piston. Nose pinched, airway closed, push back of tongue up. Compresses air into eustachian tubes. Practice with "T" or "K" sounds.</p></div>
+        <div class="dive-block"><strong>Duck Dive</strong><p>Bend sharply at waist, head/arms straight down, legs vertical. Body weight drives you under. One fin kick when fins submerge. Streamline forward. Glide.</p></div>
+      </div>
+
+      <div class="dive-phase dive-safety">
+        <h4 class="dive-phase-title">Safety — Non-Negotiable</h4>
+        <ul>
+          <li>Never hold your breath in water alone</li>
+          <li>Never hyperventilate before a hold (3+ fast breaths = dangerous)</li>
+          <li>Always hook breathe after surfacing</li>
+          <li>Tingling, tunnel vision, dizziness = stop immediately</li>
+          <li>One up, one down — always a buddy watching from surface</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── localStorage ──
+  var STORAGE_KEY = 'freedive_log';
+
+  function loadLogs() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function saveLogs(logs) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+  }
+
+  // ── Init date ──
+  document.getElementById('diveDate').value = new Date().toISOString().slice(0, 10);
+
+  // ── Stats ──
+  function updateStats() {
+    var logs = loadLogs();
+    var dry = logs.filter(function(l) { return l.type === 'dry_static' && l.duration_seconds; });
+    var wet = logs.filter(function(l) { return l.type === 'wet_static' && l.duration_seconds; });
+    var dyn = logs.filter(function(l) { return l.type === 'dynamic' && l.distance_meters; });
+    document.getElementById('statDry').textContent = dry.length ? formatTime(Math.max.apply(null, dry.map(function(l){return l.duration_seconds;}))) : '--';
+    document.getElementById('statWet').textContent = wet.length ? formatTime(Math.max.apply(null, wet.map(function(l){return l.duration_seconds;}))) : '--';
+    document.getElementById('statDyn').textContent = dyn.length ? Math.max.apply(null, dyn.map(function(l){return l.distance_meters;})) + 'm' : '--';
+    document.getElementById('statTotal').textContent = logs.length;
+  }
+
+  // ── Render log ──
+  function renderLog() {
+    var logs = loadLogs().slice().reverse();
+    var el = document.getElementById('diveLogList');
+    if (!logs.length) {
+      el.innerHTML = '<div class="dive-empty">No sessions logged yet. Start with a baseline dry static hold.</div>';
+      return;
+    }
+    el.innerHTML = logs.map(function(log, i) {
+      var realIdx = logs.length - 1 - i;
+      var metric = '';
+      if (log.duration_seconds) metric = formatTime(log.duration_seconds);
+      if (log.distance_meters) metric += (metric ? ' / ' : '') + log.distance_meters + 'm';
+      if (log.depth_feet) metric += (metric ? ' / ' : '') + log.depth_feet + 'ft';
+      if (!metric) metric = '--';
+      return '<div class="dive-log-entry">' +
+        '<div class="dive-log-date">' + log.date + '</div>' +
+        '<div class="dive-log-type dive-type-' + log.type + '">' + typeLabel(log.type) + '</div>' +
+        '<div class="dive-log-metric">' + metric + '</div>' +
+        '<div class="dive-log-notes">' + (log.notes || '') + '</div>' +
+        '<button class="dive-log-delete" onclick="deleteLog(' + log.id + ')" title="Delete">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  function refresh() { updateStats(); renderLog(); }
+
+  // ── Add log ──
+  function addDiveLog() {
+    var date = document.getElementById('diveDate').value;
+    var type = document.getElementById('diveType').value;
+    var min = parseInt(document.getElementById('diveMin').value) || 0;
+    var sec = parseInt(document.getElementById('diveSec').value) || 0;
+    var duration = (min * 60 + sec) || null;
+    var distance = parseInt(document.getElementById('diveDistance').value) || null;
+    var depth = parseInt(document.getElementById('diveDepth').value) || null;
+    var notes = document.getElementById('diveNotes').value.trim();
+    if (!date) return;
+    var logs = loadLogs();
+    logs.push({ id: Date.now(), date: date, type: type, duration_seconds: duration, distance_meters: distance, depth_feet: depth, notes: notes });
+    saveLogs(logs);
+    document.getElementById('diveMin').value = '';
+    document.getElementById('diveSec').value = '';
+    document.getElementById('diveDistance').value = '';
+    document.getElementById('diveDepth').value = '';
+    document.getElementById('diveNotes').value = '';
+    refresh();
+  }
+
+  function deleteLog(id) {
+    var logs = loadLogs().filter(function(l) { return l.id !== id; });
+    saveLogs(logs);
+    refresh();
+  }
+
+  function diveTypeChanged() {
+    var type = document.getElementById('diveType').value;
+    document.getElementById('diveDurationField').className = 'dive-form-field';
+    document.getElementById('diveDistanceField').className = 'dive-form-field dive-hidden';
+    document.getElementById('diveDepthField').className = 'dive-form-field dive-hidden';
+    if (type === 'dynamic') document.getElementById('diveDistanceField').className = 'dive-form-field';
+    if (type === 'ocean') document.getElementById('diveDepthField').className = 'dive-form-field';
+  }
+
+  // ── Helpers ──
+  function formatTime(s) {
+    if (!s) return '--';
+    return Math.floor(s/60) + ':' + (s%60 < 10 ? '0' : '') + (s%60);
+  }
+
+  function typeLabel(t) {
+    return { dry_static:'Dry Static', wet_static:'Wet Static', co2_table:'CO2 Table', dynamic:'Dynamic', duck_dive:'Duck Dive', ocean:'Ocean', breathwork:'Breath Work', body:'Body Work' }[t] || t;
+  }
+
+  // ── Download self ──
+  function downloadSelf() {
+    var html = document.documentElement.outerHTML;
+    var blob = new Blob([html], { type: 'text/html' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'freedive-tool.html';
+    a.click();
+  }
+
+  // ── Audio ──
+  var _ac = null;
+  function ac() {
+    if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === 'suspended') _ac.resume();
+    return _ac;
+  }
+  function chime() {
+    try { var c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value=880; o.type='sine'; g.gain.setValueAtTime(0.4,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.2); o.start(c.currentTime); o.stop(c.currentTime+0.2); } catch(e) {}
+  }
+  function tripleChime() { chime(); setTimeout(chime,200); setTimeout(chime,400); }
+
+  // ── Breathe-Up Timer ──
+  var _buI=null, _buS=0, _buR=false;
+  function startBreatheUp() {
+    ac();
+    var btn=document.getElementById('buBtn'), disp=document.getElementById('buDisp'), card=document.getElementById('buCard');
+    if (_buR) { clearInterval(_buI); _buI=null; _buR=false; btn.textContent='Start'; disp.textContent='2:00'; card.className='dive-timer-card'; return; }
+    _buR=true; _buS=120; btn.textContent='Stop'; card.className='dive-timer-card dive-timer-active';
+    _buI=setInterval(function() {
+      _buS--; var m=Math.floor(_buS/60),s=_buS%60; disp.textContent=m+':'+(s<10?'0':'')+s;
+      if (_buS<=0) { clearInterval(_buI); _buI=null; _buR=false; tripleChime(); disp.textContent='HOLD'; btn.textContent='Reset'; card.className='dive-timer-card dive-timer-done'; }
+    },1000);
+  }
+
+  // ── Hold Timer ──
+  var _htI=null, _htS=0, _htR=false;
+  function startHold() {
+    ac();
+    var btn=document.getElementById('htBtn'), disp=document.getElementById('htDisp'), card=document.getElementById('htCard');
+    if (_htR) { clearInterval(_htI); _htI=null; _htR=false; btn.textContent='Reset'; card.className='dive-timer-card'; return; }
+    if (btn.textContent==='Reset') { var rm=parseInt(document.getElementById('htMin').value)||0,rs=parseInt(document.getElementById('htSec').value)||0; disp.textContent=rm+':'+(rs<10?'0':'')+rs; btn.textContent='Start'; card.className='dive-timer-card'; return; }
+    var mm=parseInt(document.getElementById('htMin').value)||0, ss=parseInt(document.getElementById('htSec').value)||0, total=mm*60+ss;
+    if (!total) return;
+    _htR=true; _htS=total; btn.textContent='Stop'; disp.textContent=mm+':'+(ss<10?'0':'')+ss; card.className='dive-timer-card dive-timer-active';
+    _htI=setInterval(function() {
+      _htS--; var m=Math.floor(_htS/60),s=_htS%60; disp.textContent=m+':'+(s<10?'0':'')+s;
+      if (_htS<=0) { clearInterval(_htI); _htI=null; _htR=false; tripleChime(); disp.textContent='DONE'; btn.textContent='Reset'; card.className='dive-timer-card dive-timer-done'; }
+    },1000);
+  }
+
+  // ── Boot ──
+  refresh();
+</script>
+</body>
+</html>
